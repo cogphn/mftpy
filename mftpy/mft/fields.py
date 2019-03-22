@@ -1,7 +1,7 @@
 import struct
 from datetime import datetime
 import binascii
-from attributes import get_attribute_type
+from . attributes import get_attribute_type
 
 
 format_options = {
@@ -53,7 +53,8 @@ class BaseField(object):
             return "0x{0}".format(binascii.hexlify(self.raw).decode('utf-8'))
 
     def __repr__(self):
-        return '{0} ({1})'.format(self.value, self.hex)
+        return '{0}'.format(self.value)
+        #return '{0} ({1})'.format(self.value, self.hex)
 
     def unpack(self):
         """
@@ -85,6 +86,7 @@ class SiFlagsField(BaseField):
         0x1000: 'Offline',
         0x2000: 'Content not being indexed for faster searches',
         0x4000: 'Encrypted',
+        0x10000000: 'Directory'
     }
 
     @property
@@ -181,27 +183,61 @@ class WindowsTimeField(BaseField):
             return "Invalid date and time"
 
 
+#class ParentDirField(BaseField): #encountered some issues with b'\xa4\x13\x01\x00\x00\x00\x04\x00' and possibly others - replaced below 
+#    """
+#    Stores information about the file reference of the parent directory
+#    """
+#    # Solution found here:
+#    #   http://stackoverflow.com/questions/7949912/how-to-unpack-6-bytes-as-single-integer-using-struct-in-python
+#    # More can be found here:
+#    #   http://wiki.python.org/moin/BitwiseOperators
+#    def unpack(self):
+#        """
+#        Unpack the raw data
+#        """
+#        x1, x2, x3 = struct.unpack('<HHI', self.raw)
+#        return x1, x2 | (x3 >> 16)
+#
+#    @property
+#    def value(self):
+#        return self.unpack()
+#
+#    def __repr__(self):
+#        #return '{0} / {1} ({2})'.format(self.value[0], self.value[1], self.hex)
+#        return '{0}'.format(self.value[0])
+
 class ParentDirField(BaseField):
     """
     Stores information about the file reference of the parent directory
     """
-    # Solution found here:
-    #   http://stackoverflow.com/questions/7949912/how-to-unpack-6-bytes-as-single-integer-using-struct-in-python
-    # More can be found here:
-    #   http://wiki.python.org/moin/BitwiseOperators
     def unpack(self):
         """
         Unpack the raw data
         """
-        x1, x2, x3 = struct.unpack('<HHI', self.raw)
-        return x1, x2 | (x3 >> 16)
+        x1 = struct.unpack("<Lxx",self.raw[:6])[0]
+        x2 = struct.unpack("<H",self.raw[6:8])[0]
+        return x1, x2
 
     @property
     def value(self):
         return self.unpack()
 
     def __repr__(self):
-        return '{0} / {1} ({2})'.format(self.value[0], self.value[1], self.hex)
+        #return '{0} / {1} ({2})'.format(self.value[0], self.value[1], self.hex)
+        #return '{0} / {1}'.format(self.value[0], self.value[1])
+        return '{0}'.format(self.value[0])
+
+class ParentDirSequence(BaseField):
+    def unpack(self):
+        x1 = struct.unpack("<H",self.raw[6:8])[0]
+        return x1
+    
+    @property
+    def value(self):
+        return self.unpack()
+    
+    def __repr__(self):
+        return self.value
 
 
 class AttributeTypeField(BaseField):
